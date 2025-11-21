@@ -1,11 +1,7 @@
-/**
- * React Hook - 简化区块链操作
- * 
- * 这个自定义 Hook 封装了常用的区块链操作，提供更简洁的 API
- */
+// 文件路径: src/lib/useBlockchain.ts
 
 import { useState, useEffect, useCallback } from 'react';
-import { blockchainService, WalletInfo, ProductInfo, ProductEvent, TransactionResult } from './blockchainService';
+import { blockchainService, WalletInfo, ProductInfo, TransactionResult } from './blockchainService';
 import { parseBlockchainError, saveLastConnectedAddress, clearLastConnectedAddress } from './blockchainUtils';
 
 // ============================================================================
@@ -36,9 +32,10 @@ export function useWallet() {
   }, []);
 
   const disconnect = useCallback(() => {
-    blockchainService.disconnect();
+    // Service 没有 disconnect 方法，直接清空本地状态
     setWallet(null);
     clearLastConnectedAddress();
+    // 如果需要在 Service 层也清空，可以在 Service 加一个 reset 方法，但通常不需要
   }, []);
 
   const isConnected = wallet !== null;
@@ -100,7 +97,7 @@ export function useProduct(tokenId: number | string | null) {
 // ============================================================================
 
 export function useProductHistory(tokenId: number | string | null) {
-  const [history, setHistory] = useState<ProductEvent[]>([]);
+  const [history, setHistory] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -154,15 +151,15 @@ export function useWarranty(tokenId: number | string | null) {
     setError(null);
 
     try {
-      const [valid, exp] = await Promise.all([
-        blockchainService.isWarrantyValid(tokenId),
-        blockchainService.getWarrantyExpiration(tokenId),
-      ]);
+      // 改为从 getProductInfo 获取，因为 Service 移除了独立方法
+      const info = await blockchainService.getProductInfo(tokenId);
+      const expDate = new Date(Number(info.warrantyExpiration) * 1000);
+      const isValidNow = expDate > new Date();
       
-      setIsValid(valid);
-      setExpiration(exp);
+      setIsValid(isValidNow);
+      setExpiration(expDate);
       
-      return { isValid: valid, expiration: exp };
+      return { isValid: isValidNow, expiration: expDate };
     } catch (err: any) {
       const errorMsg = parseBlockchainError(err);
       setError(errorMsg);
@@ -301,113 +298,3 @@ export function useProductTransfer() {
     error,
   };
 }
-
-// ============================================================================
-// Hook: useEventListener - 事件监听
-// ============================================================================
-
-export function useEventListener() {
-  const [events, setEvents] = useState<any[]>([]);
-
-  useEffect(() => {
-    if (!blockchainService.isConnected()) return;
-
-    // 监听产品注册
-    blockchainService.onProductRegistered((tokenId, manufacturer, owner, data) => {
-      setEvents((prev) => [
-        ...prev,
-        {
-          type: 'ProductRegistered',
-          tokenId: tokenId.toString(),
-          manufacturer,
-          owner,
-          data,
-          timestamp: Date.now(),
-        },
-      ]);
-    });
-
-    // 监听转移
-    blockchainService.onTransfer((from, to, tokenId) => {
-      setEvents((prev) => [
-        ...prev,
-        {
-          type: 'Transfer',
-          tokenId: tokenId.toString(),
-          from,
-          to,
-          timestamp: Date.now(),
-        },
-      ]);
-    });
-
-    // 监听保修申请
-    blockchainService.onWarrantyClaimSubmitted((claimId, tokenId, customer, issue) => {
-      setEvents((prev) => [
-        ...prev,
-        {
-          type: 'WarrantyClaimSubmitted',
-          claimId: claimId.toString(),
-          tokenId: tokenId.toString(),
-          customer,
-          issue,
-          timestamp: Date.now(),
-        },
-      ]);
-    });
-
-    return () => {
-      blockchainService.removeAllListeners();
-    };
-  }, []);
-
-  return { events };
-}
-
-// ============================================================================
-// 使用示例
-// ============================================================================
-
-/**
- * EXAMPLE: 在 React 组件中使用
- * 
- * import { useWallet, useProduct, useWarrantyClaim } from './lib/useBlockchain';
- * 
- * function MyComponent() {
- *   // 钱包连接
- *   const { wallet, isConnected, connect, disconnect } = useWallet();
- * 
- *   // 产品信息
- *   const { productInfo, isLoading, reload } = useProduct(1001);
- * 
- *   // 保修申请
- *   const { submitClaim, isSubmitting } = useWarrantyClaim();
- * 
- *   const handleSubmit = async () => {
- *     await submitClaim(1001, '屏幕损坏', () => {
- *       alert('保修申请已提交!');
- *       reload(); // 刷新产品信息
- *     });
- *   };
- * 
- *   return (
- *     <div>
- *       {!isConnected ? (
- *         <button onClick={connect}>连接钱包</button>
- *       ) : (
- *         <>
- *           <p>已连接: {wallet?.address}</p>
- *           {productInfo && (
- *             <div>
- *               <h2>{productInfo.model}</h2>
- *               <button onClick={handleSubmit} disabled={isSubmitting}>
- *                 {isSubmitting ? '提交中...' : '提交保修申请'}
- *               </button>
- *             </div>
- *           )}
- *         </>
- *       )}
- *     </div>
- *   );
- * }
- */

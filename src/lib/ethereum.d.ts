@@ -1,6 +1,4 @@
-/**
- * TypeScript 类型声明 - MetaMask 和 Ethereum Provider
- */
+
 
 interface Window {
   ethereum?: {

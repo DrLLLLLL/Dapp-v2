@@ -1,17 +1,15 @@
-/**
- * 区块链工具函数
- * 
- * 提供常用的辅助函数来处理区块链数据
- */
 
+ //Blockchain utility functions
+
+// @ts-ignore
 import { ProductEvent } from './blockchainService';
 
-// ============================================================================
-// 地址处理
-// ============================================================================
+
+// Address handling
+
 
 /**
- * 截短以太坊地址（例如：0x1234...5678）
+ * Truncate Ethereum address
  */
 export function shortenAddress(address: string, chars = 4): string {
   if (!address) return '';
@@ -67,16 +65,16 @@ export function formatRelativeTime(timestamp: number | bigint): string {
   const months = Math.floor(days / 30);
   const years = Math.floor(days / 365);
 
-  if (years > 0) return `${years}年前`;
-  if (months > 0) return `${months}个月前`;
-  if (days > 0) return `${days}天前`;
-  if (hours > 0) return `${hours}小时前`;
-  if (minutes > 0) return `${minutes}分钟前`;
-  return '刚刚';
+  if (years > 0) return `${years} years ago`;
+  if (months > 0) return `${months} months ago`;
+  if (days > 0) return `${days} days ago`;
+  if (hours > 0) return `${hours} hours ago`;
+  if (minutes > 0) return `${minutes} minutes ago`;
+  return 'Just now';
 }
 
 /**
- * 计算保修剩余时间
+ * Calculate warranty remaining time  
  */
 export function calculateWarrantyRemaining(expirationDate: Date): {
   expired: boolean;
@@ -91,7 +89,7 @@ export function calculateWarrantyRemaining(expirationDate: Date): {
     return {
       expired: true,
       days: 0,
-      text: '已过期',
+      text: 'Has expired',
     };
   }
 
@@ -99,7 +97,7 @@ export function calculateWarrantyRemaining(expirationDate: Date): {
     return {
       expired: false,
       days: 0,
-      text: '今天到期',
+      text: 'Expires today',
     };
   }
 
@@ -107,7 +105,7 @@ export function calculateWarrantyRemaining(expirationDate: Date): {
     return {
       expired: false,
       days,
-      text: `剩余 ${days} 天`,
+      text: `Remaining ${days} days`, 
     };
   }
 
@@ -116,7 +114,7 @@ export function calculateWarrantyRemaining(expirationDate: Date): {
     return {
       expired: false,
       days,
-      text: `剩余 ${months} 个月`,
+      text: `Remaining ${months} months`, 
     };
   }
 
@@ -125,7 +123,7 @@ export function calculateWarrantyRemaining(expirationDate: Date): {
   return {
     expired: false,
     days,
-    text: `剩余 ${years} 年 ${remainingMonths} 个月`,
+    text: `Remaining ${years} years ${remainingMonths} months`, 
   };
 }
 
@@ -171,11 +169,11 @@ export function getExplorerLink(
  */
 export function getEventTypeText(type: ProductEvent['type']): string {
   const typeMap: Record<ProductEvent['type'], string> = {
-    ProductRegistered: '产品注册',
-    Transfer: '所有权转移',
-    WarrantyClaimSubmitted: '保修申请',
-    WarrantyClaimProcessed: '保修处理',
-    ServiceRecorded: '服务记录',
+    ProductRegistered: 'Product Registered',
+    Transfer: 'Transfer',
+    WarrantyClaimSubmitted: 'Warranty Claim Submitted',
+    WarrantyClaimProcessed: 'Warranty Claim Processed',
+    ServiceRecorded: 'Service Recorded',
   };
   return typeMap[type] || type;
 }
@@ -214,22 +212,22 @@ export function getEventColor(type: ProductEvent['type']): string {
 export function generateEventDescription(event: ProductEvent): string {
   switch (event.type) {
     case 'ProductRegistered':
-      return `产品 ${event.data.model} (${event.data.serialNumber}) 由 ${shortenAddress(event.data.manufacturer)} 注册`;
+      return `Product ${event.data.model} (${event.data.serialNumber}) registered by ${shortenAddress(event.data.manufacturer)}`;
     
     case 'Transfer':
-      return `产品从 ${shortenAddress(event.data.from)} 转移至 ${shortenAddress(event.data.to)}`;
+      return `Product ${event.data.model} (${event.data.serialNumber}) transferred from ${shortenAddress(event.data.from)} to ${shortenAddress(event.data.to)}`;
     
     case 'WarrantyClaimSubmitted':
-      return `${shortenAddress(event.data.customer)} 提交保修申请: ${event.data.issueDescription}`;
+      return `${shortenAddress(event.data.customer)} submitted a warranty claim: ${event.data.issueDescription}`;
     
     case 'WarrantyClaimProcessed':
-      return `保修申请 ${event.data.approved ? '已批准' : '已拒绝'}`;
+      return `Warranty claim ${event.data.approved ? 'approved' : 'rejected'}`;
     
     case 'ServiceRecorded':
-      return `服务记录: ${event.data.serviceNotes}`;
+      return `Service record: ${event.data.serviceNotes}`;
     
     default:
-      return '未知事件';
+      return 'Unknown event';
   }
 }
 
@@ -270,16 +268,16 @@ export function bigIntToNumber(value: bigint): number {
  * 解析区块链错误消息
  */
 export function parseBlockchainError(error: any): string {
-  if (!error) return '未知错误';
+  if (!error) return 'Unknown error';
 
   // 用户拒绝交易
   if (error.code === 4001 || error.code === 'ACTION_REJECTED') {
-    return '用户取消了交易';
+    return 'User cancelled the transaction';
   }
 
   // 余额不足
   if (error.message?.includes('insufficient funds')) {
-    return '余额不足，无法支付 Gas 费用';
+    return 'Insufficient balance to pay for gas fees';
   }
 
   // 合约执行失败
@@ -287,19 +285,19 @@ export function parseBlockchainError(error: any): string {
     // 尝试提取 revert 原因
     const match = error.message.match(/reverted with reason string '(.+?)'/);
     if (match) {
-      return `交易失败: ${match[1]}`;
+      return `Transaction failed: ${match[1]}`;
     }
-    return '合约执行失败';
+    return 'Contract execution failed';
   }
 
   // 网络错误
   if (error.message?.includes('network')) {
-    return '网络连接错误，请检查您的网络';
+    return 'Network connection error, please check your network';
   }
 
   // Gas 估算失败
   if (error.message?.includes('gas')) {
-    return 'Gas 费用估算失败，请检查交易参数';
+    return 'Gas fee estimation failed, please check transaction parameters';
   }
 
   // 返回原始错误消息

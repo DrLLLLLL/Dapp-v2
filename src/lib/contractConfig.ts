@@ -1,14 +1,8 @@
 // 文件路径: src/lib/contractConfig.ts
 
-/**
- * 智能合约配置
- * 迁移自原 Dapp_副本 项目
- */
 
-// ⚠️ 显式声明为 string 类型，避免 TypeScript 字面量类型推断错误
 export const CONTRACT_ADDRESS: string = '0x9d7a7eF24CDd32Af4287BA8DC7f2fd8ADBd65186';
 
-// 务必使用 Dapp_副本 中完整的 ABI，特别是包含 claimLimit 和 tokenIdForSerialHash 的部分
 export const CONTRACT_ABI = [
   "function registerProduct(address initialOwner, string calldata serialNumber, string calldata model, uint64 warrantyDurationInSeconds, uint32 claimLimit) external returns (uint256)",
   "function getProductDetails(uint256 tokenId) external view returns (tuple(string serialNumber, string model, address manufacturer, uint64 manufactureTimestamp, uint64 warrantyDuration, uint64 warrantyStart, uint64 warrantyExpiration, uint32 warrantyClaimLimit, uint32 warrantyClaimCount))",
@@ -38,9 +32,7 @@ export const CONTRACT_ABI = [
   "event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)"
 ];
 
-/**
- * 网络配置
- */
+
 export const NETWORK_CONFIG = {
   localhost: {
     chainId: '0x7a69', // 31337
@@ -56,7 +48,7 @@ export const NETWORK_CONFIG = {
 };
 
 export function isContractConfigured(): boolean {
-  // 使用 indexOf 替代 startsWith 以获得更好的兼容性
+  
   return CONTRACT_ADDRESS.indexOf('0x') === 0 && CONTRACT_ADDRESS.length === 42;
 }
 

@@ -1,5 +1,5 @@
-// 文件路径: src/lib/blockchainService.ts
-
+// File Path: src/lib/blockchainService.ts
+// @ts-ignore
 import { ethers, BigNumber } from 'ethers';
 import { CONTRACT_ADDRESS, CONTRACT_ABI, isContractConfigured } from './contractConfig';
 
@@ -55,7 +55,7 @@ export class BlockchainService {
   private toBigInt(value: any): bigint { return BigInt(value.toString()); }
   private async initRoles() { if (this.contract) { try { this.ROLES.MANUFACTURER_ROLE = await this.contract.MANUFACTURER_ROLE(); this.ROLES.RETAILER_ROLE = await this.contract.RETAILER_ROLE(); this.ROLES.SERVICE_CENTER_ROLE = await this.contract.SERVICE_CENTER_ROLE(); } catch (e) {} } }
 
-  // ... (权限和写入方法保持不变)
+  // ... (The permissions and write methods remain unchanged)
   async getUserRoles(address: string): Promise<UserRoles> { try { const [isAdmin, isManufacturer, isRetailer, isServiceCenter] = await Promise.all([this.contract!.hasRole(this.ROLES.DEFAULT_ADMIN_ROLE, address), this.contract!.hasRole(this.ROLES.MANUFACTURER_ROLE, address), this.contract!.hasRole(this.ROLES.RETAILER_ROLE, address), this.contract!.hasRole(this.ROLES.SERVICE_CENTER_ROLE, address)]); return { isAdmin, isManufacturer, isRetailer, isServiceCenter }; } catch { return { isAdmin: false, isManufacturer: false, isRetailer: false, isServiceCenter: false }; } }
   async grantRole(roleName: string, targetAddress: string): Promise<TransactionResult> { try { /* @ts-ignore */ const roleHash = this.ROLES[`${roleName}_ROLE`]; const tx = await this.contract!.grantRole(roleHash, targetAddress); await tx.wait(); return { hash: tx.hash, success: true }; } catch (e: any) { return { hash: '', success: false, error: e.message }; } }
   async getTokenIdBySerial(serialNumber: string): Promise<string | null> { try { const hash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(serialNumber)); const id = await this.contract!.tokenIdForSerialHash(hash); return id.toString() === '0' ? null : id.toString(); } catch { return null; } }
@@ -68,12 +68,13 @@ export class BlockchainService {
   async getProductInfo(tokenId: string | number): Promise<ProductInfo> { const info = await this.contract!.getProductDetails(tokenId); return { serialNumber: info[0], model: info[1], manufacturer: info[2], manufactureDate: this.toBigInt(info[3]), warrantyPeriod: this.toBigInt(info[4]), warrantyStart: this.toBigInt(info[5]), warrantyExpiration: this.toBigInt(info[6]), claimLimit: this.toBigInt(info[7]), claimCount: this.toBigInt(info[8]) }; }
   async getProductsByOwner(ownerAddress: string): Promise<any[]> { if (!this.contract) return []; try { const filter = this.contract.filters.Transfer(null, ownerAddress); const events = await this.contract.queryFilter(filter, 0); const tokenIds = new Set<string>(); events.forEach((e: any) => tokenIds.add(e.args[2].toString())); const products = []; for (const id of tokenIds) { try { const currentOwner = await this.contract.ownerOf(id); if (currentOwner.toLowerCase() === ownerAddress.toLowerCase()) { const details = await this.getProductInfo(id); products.push({ tokenId: id, ...details }); } } catch (e) {} } return products; } catch (e) { return []; } }
   
-  // ✅ 1. Customer Portal 专用：只查所有权转移 (Transfer)
+  // 1. Customer Portal Dedicated: Only check ownership Transfer (Transfer)
+  
   async getProductTransfers(tokenId: string | number): Promise<any[]> {
-    if (!this.contract) throw new Error('合约未初始化');
+    if (!this.contract) throw new Error('Contract not initialized');
     try {
       const filter = this.contract.filters.Transfer(null, null, tokenId);
-      // 强制从 0 开始
+      // Force 0 init
       const logs = await this.contract.queryFilter(filter, 0);
       
       const history = await Promise.all(logs.map(async (log) => {
@@ -97,15 +98,15 @@ export class BlockchainService {
     } catch (error) { return []; }
   }
 
-  // ✅ 2. Verify 页面专用：查询【完整】历史 (包含 6 种事件)
+  // 2. Verify page dedicated: Query [complete] history (including 6 types of events)
   async getProductHistory(tokenId: string | number): Promise<any[]> {
-    if (!this.contract || !this.provider) throw new Error('合约未初始化');
+    if (!this.contract || !this.provider) throw new Error('Contract or provider not initialized');
     try {
       const events: any[] = [];
       
       const processEvents = async (filter: any, type: string, dataMapper: (args: any) => any) => {
         try {
-          // ⚠️ 关键：强制从 Block 0 开始
+          
           const logs = await this.contract!.queryFilter(filter, 0);
           for (const log of logs) {
               let timestamp = Math.floor(Date.now() / 1000);
@@ -115,15 +116,15 @@ export class BlockchainService {
         } catch (e) { console.warn(`Failed to fetch ${type}`, e); }
       };
 
-      // A. 注册 (制造商=3, 初始拥有者=4)
+      // A. Registration (Manufacturer =3, Initial Owner =4)
       await processEvents(this.contract.filters.ProductRegistered(tokenId), 'ProductRegistered',
           (args) => ({ manufacturer: args[3], initialOwner: args[4] }));
       
-      // B. 保修激活
+      // B. WarrantyActivated
       await processEvents(this.contract.filters.WarrantyActivated(tokenId), 'WarrantyActivated',
           (args) => ({ customer: args[1], expirationTime: args[3] }));
       
-      // C. 转移 (过滤铸造)
+      // C. Transfer
       try {
         const transferLogs = await this.contract.queryFilter(this.contract.filters.Transfer(null, null, tokenId), 0);
         for (const log of transferLogs) {
@@ -134,15 +135,15 @@ export class BlockchainService {
         }
       } catch(e) {}
 
-      // D. 保修申请
+      // D. WarrantyClaimSubmitted
       await processEvents(this.contract.filters.WarrantyClaimSubmitted(null, tokenId), 'WarrantyClaimSubmitted',
         (args) => ({ claimId: args[0], issueDescription: args[3] }));
       
-      // E. 保修处理
+      // E. WarrantyClaimProcessed
       await processEvents(this.contract.filters.WarrantyClaimProcessed(null, tokenId), 'WarrantyClaimProcessed',
         (args) => ({ claimId: args[0], approved: args[3] }));
 
-      // F. 服务记录
+      // F. ServiceRecorded
       await processEvents(this.contract.filters.ServiceRecorded(tokenId), 'ServiceRecorded',
         (args) => ({ serviceNotes: args[3] }));
       
@@ -160,7 +161,7 @@ export class BlockchainService {
       return await Promise.all(events.map(async (e: any) => {
          const info = await this.contract!.getWarrantyClaim(e.args[0]);
          const prod = await this.getProductInfo(info[0]);
-         // 健壮的属性读取
+         
          const processed = info.processed !== undefined ? info.processed : info[4];
          const approved = info.approved !== undefined ? info.approved : info[5];
          return { 
